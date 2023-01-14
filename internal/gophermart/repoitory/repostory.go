@@ -5,13 +5,10 @@ import (
 	"fmt"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype/zeronull"
 	"os"
 	"time"
 )
-
-type DataBase struct {
-	*pgx.Conn
-}
 
 type userTable struct {
 	*pgx.Conn
@@ -28,10 +25,11 @@ func (ut *userTable) CreateUser(login, hashedPassword string, c context.Context)
 	return err
 }
 
-func (ut *userTable) GetUser(login, c context.Context) (*types.User, error) {
-	r := ut.QueryRow(c, "select 1 from users where login = $1", login)
+func (ut *userTable) GetUser(login string, c context.Context) (*types.User, error) {
+	r := ut.QueryRow(c, "select * from users where login = $1", login)
 	user := new(types.User)
-	err := r.Scan(&user.Id, &user.Login, &user.Password, &user.Balance)
+	b := zeronull.Int8(user.Balance)
+	err := r.Scan(&user.Id, &user.Login, &user.Password, &b)
 	return user, err
 }
 
@@ -52,11 +50,11 @@ func (ot *ordersTable) UpdateOrder(id int, status string, accrual int, c context
 	ot.Exec(c, "update orders set status = $2, accrual = $3 where id = $1", id, status, accrual)
 }
 
-func InitDataBase() *DataBase {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("postgres://postgres:pescola@localhost:5432/gophermart"))
+func InitDataBase() UserTable {
+	conn, err := pgx.Connect(context.Background(), "postgres://postgres:pescola@localhost:5432/gophermart")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
 	}
-	return &DataBase{conn}
+	return &userTable{conn}
 }

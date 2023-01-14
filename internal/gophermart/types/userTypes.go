@@ -4,7 +4,7 @@ type User struct {
 	Id       int
 	Login    string
 	Password string
-	Balance  int
+	Balance  int64
 }
 
 type UserRequest struct {
