@@ -27,7 +27,7 @@ func (ut *userTable) CreateUser(login, hashedPassword string, c context.Context)
 func (ut *userTable) GetUser(login string, c context.Context) (*types.User, error) {
 	r := ut.QueryRow(c, "select * from users where login = $1", login)
 	user := new(types.User)
-	err := r.Scan(&user.Id, &user.Login, &user.Password, &user.Balance)
+	err := r.Scan(&user.Id, &user.Login, &user.Password, &user.Balance, &user.Withdraw)
 	return user, err
 }
 
@@ -42,7 +42,8 @@ type ordersTable struct {
 
 type OrderTable interface {
 	CreateOrder(login, orderId string, c context.Context) error
-	UpdateOrder(orderId string, status string, accrual int, c context.Context) error
+	UpdateOrder(orderId string, status types.OrderStatus, accrual int, c context.Context) error
+	GetOrderByOrderId(orderId string, c context.Context) (*types.Order, error)
 	GetAllOrdersByLogin(login string, c context.Context) ([]types.Order, error)
 }
 
@@ -51,11 +52,16 @@ func (ot *ordersTable) CreateOrder(login, orderId string, c context.Context) err
 	return err
 }
 
-func (ot *ordersTable) UpdateOrder(orderId string, status string, accrual int, c context.Context) error {
+func (ot *ordersTable) UpdateOrder(orderId string, status types.OrderStatus, accrual int, c context.Context) error {
 	_, err := ot.Exec(c, "update orders set status = $2, accrual = $3 where order_id = $1", orderId, status, accrual)
 	return err
 }
-
+func (ot *ordersTable) GetOrderByOrderId(orderId string, c context.Context) (*types.Order, error) {
+	r := ot.QueryRow(c, "select * from orders where order_id = $1", orderId)
+	order := new(types.Order)
+	err := r.Scan(&order.Id, &order.UserLogin, &order.OrderId, &order.Status, &order.Accrual, &order.UploadedAt)
+	return order, err
+}
 func (ot *ordersTable) GetAllOrdersByLogin(login string, c context.Context) ([]types.Order, error) {
 	rows, err := ot.Query(c, "select * from orders where user_login = $1", login)
 	if err != nil {

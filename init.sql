@@ -1,3 +1,3 @@
 create table users (id serial not null , login varchar(20) primary key not null unique , password varchar not null , balance int not null default 0.0, withdraw int not null default 0.0);
 create type order_status as enum ('NEW', 'PROCESSING', 'INVALID', 'PROCESSED');
-create table orders (id serial not null , user_login varchar(20) references users(login) not null , order_id varchar primary key,  status order_status not null , accrual int not null default 0.0, uploaded_at date not null );
+create table orders (id serial not null , user_login varchar(20) references users(login) not null , order_id varchar primary key not null ,  status order_status not null , accrual int not null default 0.0, uploaded_at date not null );

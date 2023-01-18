@@ -4,6 +4,45 @@ definitions:
     properties:
       message: {}
     type: object
+  types.Order:
+    properties:
+      accrual:
+        type: integer
+      number:
+        type: string
+      status:
+        $ref: '#/definitions/types.OrderStatus'
+      uploaded_at:
+        type: string
+    type: object
+  types.OrderStatus:
+    enum:
+    - NEW
+    - PROCESSING
+    - INVALID
+    - PROCESSED
+    type: string
+    x-enum-varnames:
+    - New
+    - Processing
+    - Invalid
+    - Processed
+  types.UserBalance:
+    properties:
+      current:
+        type: number
+      withdraw:
+        type: number
+    type: object
+  types.Withdraw:
+    properties:
+      order:
+        type: string
+      processed_at:
+        type: string
+      sum:
+        type: integer
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -18,11 +57,80 @@ info:
   title: Gophermart API
   version: "1.0"
 paths:
+  /user/balance:
+    get:
+      description: Хендлер доступен только авторизованному пользователю. Факты выводов
+        в выдаче должны быть отсортированы по времени вывода от самых старых к самым
+        новым. Формат даты — RFC3339.
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/types.Withdraw'
+            type: array
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Получение информации о выводе средств
+      tags:
+      - withdraws
+  /user/balance/withdraw:
+    post:
+      consumes:
+      - application/json
+      description: Хендлер доступен только авторизованному пользователю. Номер заказа
+        представляет собой гипотетический номер нового заказа пользователя, в счёт
+        оплаты которого списываются баллы.
+      parameters:
+      - description: Номер заказа
+        in: body
+        name: order
+        required: true
+        schema:
+          type: string
+      - description: Сумма баллов к списанию в счёт оплаты
+        in: body
+        name: sum
+        required: true
+        schema:
+          type: number
+      responses:
+        "200":
+          description: OK
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "402":
+          description: Payment Required
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Запрос на списание средств
+      tags:
+      - withdraws
   /user/login:
     post:
       consumes:
       - application/json
-      description: Логин
+      description: Аутентификация производится по паре логин/пароль. Для передачи
+        аутентификационных данных используйте механизм cookies или HTTP-заголовок
+        Authorization.
       parameters:
       - description: Логин пользователя
         in: body
@@ -51,14 +159,80 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/echo.HTTPError'
-      summary: Логин
+      summary: Аутентификация пользователя
       tags:
       - user
+  /user/orders:
+    get:
+      description: Хендлер доступен только авторизованному пользователю. Номера заказа
+        в выдаче должны быть отсортированы по времени загрузки от самых старых к самым
+        новым. Формат даты — RFC3339.
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/types.Order'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Загрузка номера заказа
+      tags:
+      - orders
+    post:
+      consumes:
+      - text/plain
+      description: Хендлер доступен только аутентифицированным пользователям. Номером
+        заказа является последовательность цифр произвольной длины.
+      parameters:
+      - description: Номер заказа
+        in: body
+        name: order
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+        "202":
+          description: Accepted
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/echo.HTTPError'
+      summary: Загрузка номера заказа
+      tags:
+      - orders
   /user/register:
     post:
       consumes:
       - application/json
-      description: Регистрация
+      description: Регистрация производится по паре логин/пароль. Каждый логин должен
+        быть уникальным. После успешной регистрации должна происходить автоматическая
+        аутентификация пользователя. Для передачи аутентификационных данных используйте
+        механизм cookies или HTTP-заголовок Authorization.
       parameters:
       - description: Логин нового пользователя
         in: body
@@ -87,7 +261,7 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/echo.HTTPError'
-      summary: Регистрация
+      summary: Регистрация пользователя
       tags:
       - user
 securityDefinitions:

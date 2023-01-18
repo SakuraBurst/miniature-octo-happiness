@@ -25,16 +25,112 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/user/balance": {
+            "get": {
+                "description": "Хендлер доступен только авторизованному пользователю. Факты выводов в выдаче должны быть отсортированы по времени вывода от самых старых к самым новым. Формат даты — RFC3339.",
+                "tags": [
+                    "withdraws"
+                ],
+                "summary": "Получение информации о выводе средств",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.Withdraw"
+                            }
+                        }
+                    },
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
+        "/user/balance/withdraw": {
+            "post": {
+                "description": "Хендлер доступен только авторизованному пользователю. Номер заказа представляет собой гипотетический номер нового заказа пользователя, в счёт оплаты которого списываются баллы.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "withdraws"
+                ],
+                "summary": "Запрос на списание средств",
+                "parameters": [
+                    {
+                        "description": "Номер заказа",
+                        "name": "order",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Сумма баллов к списанию в счёт оплаты",
+                        "name": "sum",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "number"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "402": {
+                        "description": "Payment Required",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/user/login": {
             "post": {
-                "description": "Логин",
+                "description": "Аутентификация производится по паре логин/пароль. Для передачи аутентификационных данных используйте механизм cookies или HTTP-заголовок Authorization.",
                 "consumes": [
                     "application/json"
                 ],
                 "tags": [
                     "user"
                 ],
-                "summary": "Логин",
+                "summary": "Аутентификация пользователя",
                 "parameters": [
                     {
                         "description": "Логин пользователя",
@@ -80,16 +176,107 @@ const docTemplate = `{
                 }
             }
         },
+        "/user/orders": {
+            "get": {
+                "description": "Хендлер доступен только авторизованному пользователю. Номера заказа в выдаче должны быть отсортированы по времени загрузки от самых старых к самым новым. Формат даты — RFC3339.",
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Загрузка номера заказа",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/types.Order"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Хендлер доступен только аутентифицированным пользователям. Номером заказа является последовательность цифр произвольной длины.",
+                "consumes": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "orders"
+                ],
+                "summary": "Загрузка номера заказа",
+                "parameters": [
+                    {
+                        "description": "Номер заказа",
+                        "name": "order",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "202": {
+                        "description": "Accepted"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/echo.HTTPError"
+                        }
+                    }
+                }
+            }
+        },
         "/user/register": {
             "post": {
-                "description": "Регистрация",
+                "description": "Регистрация производится по паре логин/пароль. Каждый логин должен быть уникальным. После успешной регистрации должна происходить автоматическая аутентификация пользователя. Для передачи аутентификационных данных используйте механизм cookies или HTTP-заголовок Authorization.",
                 "consumes": [
                     "application/json"
                 ],
                 "tags": [
                     "user"
                 ],
-                "summary": "Регистрация",
+                "summary": "Регистрация пользователя",
                 "parameters": [
                     {
                         "description": "Логин нового пользователя",
@@ -141,6 +328,63 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "message": {}
+            }
+        },
+        "types.Order": {
+            "type": "object",
+            "properties": {
+                "accrual": {
+                    "type": "integer"
+                },
+                "number": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/types.OrderStatus"
+                },
+                "uploaded_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "types.OrderStatus": {
+            "type": "string",
+            "enum": [
+                "NEW",
+                "PROCESSING",
+                "INVALID",
+                "PROCESSED"
+            ],
+            "x-enum-varnames": [
+                "New",
+                "Processing",
+                "Invalid",
+                "Processed"
+            ]
+        },
+        "types.UserBalance": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "type": "number"
+                },
+                "withdraw": {
+                    "type": "number"
+                }
+            }
+        },
+        "types.Withdraw": {
+            "type": "object",
+            "properties": {
+                "order": {
+                    "type": "string"
+                },
+                "processed_at": {
+                    "type": "string"
+                },
+                "sum": {
+                    "type": "integer"
+                }
             }
         }
     },

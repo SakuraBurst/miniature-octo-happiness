@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
+	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/jackc/pgx/v5"
 	echojwt "github.com/labstack/echo-jwt/v4"
@@ -82,6 +83,17 @@ func (uc *GopherMartUserController) Login(login, password string, c context.Cont
 		return "", err
 	}
 	return uc.createUserToken(login)
+}
+
+func (uc *GopherMartUserController) GetUserBalance(login string, c context.Context) (*types.UserBalance, error) {
+	user, err := uc.repository.GetUser(login, c)
+	if err != nil {
+		return nil, err
+	}
+	balance := new(types.UserBalance)
+	balance.CurrentBalance = user.Balance
+	balance.Withdraw = user.Withdraw
+	return balance, nil
 }
 
 func (uc *GopherMartUserController) createUserToken(login string) (string, error) {

@@ -4,7 +4,8 @@ type User struct {
 	Id       int
 	Login    string
 	Password string
-	Balance  int64
+	Balance  float64
+	Withdraw float64
 }
 
 type UserRequest struct {
