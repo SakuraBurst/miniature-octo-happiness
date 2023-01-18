@@ -25,8 +25,8 @@ var ErrExistingUser = errors.New("user already exist")
 var ErrNoExist = errors.New("no exist")
 var secret = []byte("secret")
 
-func InitUserController() *GopherMartUserController {
-	return &GopherMartUserController{repository: repoitory.InitDataBase()}
+func InitUserController(table repoitory.UserTable) *GopherMartUserController {
+	return &GopherMartUserController{repository: table}
 }
 
 func UserTokenConfig() echojwt.Config {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	_ "github.com/SakuraBurst/miniature-octo-happiness/cmd/gophermart/docs"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/controller"
+	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
@@ -15,14 +16,16 @@ import (
 
 type Router struct {
 	*echo.Echo
-	Endpoint       string
-	userController *controller.GopherMartUserController
+	Endpoint        string
+	userController  *controller.GopherMartUserController
+	orderController *controller.GopherMartOrderController
 }
 
 //swag init --parseDependency --parseInternal -d ./,../../internal/gophermart/router
 
 func CreateRouter(endpoint string) *Router {
-	router := &Router{Echo: echo.New(), Endpoint: endpoint, userController: controller.InitUserController()}
+	userRep, orderRep := repoitory.InitDataBase()
+	router := &Router{Echo: echo.New(), Endpoint: endpoint, userController: controller.InitUserController(userRep), orderController: controller.InitOrderController(orderRep)}
 	router.GET("/swagger/*", echoSwagger.WrapHandler)
 	router.Use(middleware.Logger())
 	router.Use(middleware.Recover())
@@ -99,6 +102,19 @@ func (r Router) Login(c echo.Context) error {
 	c.Response().WriteHeader(http.StatusOK)
 	return nil
 }
+
+// CreateOrder godoc
+//
+//	@Summary        Загрузка номера заказа
+//	@Description	Загрузка номера заказа
+//	@Tags			orders
+//	@Accept			text
+//	@Param			order		body	string	true	"Логин пользователя"
+//	@Success		200
+//	@Failure		400	{object}	echo.HTTPError
+//	@Failure		401	{object}	echo.HTTPError
+//	@Failure		500	{object}	echo.HTTPError
+//	@Router			/user/login [post
 func (r Router) CreateOrder(c echo.Context) error {
 	return c.String(http.StatusOK, "Welcome "+controller.UserLoginFromToken(c.Get("token"))+"!")
 }
