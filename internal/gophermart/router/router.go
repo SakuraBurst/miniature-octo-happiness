@@ -6,7 +6,6 @@ import (
 	"fmt"
 	_ "github.com/SakuraBurst/miniature-octo-happiness/cmd/gophermart/docs"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/controller"
-	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
@@ -18,17 +17,23 @@ import (
 
 type Router struct {
 	*echo.Echo
-	Endpoint        string
-	userController  *controller.GopherMartUserController
-	orderController *controller.GopherMartOrderController
+	Endpoint           string
+	userController     *controller.GopherMartUserController
+	orderController    *controller.GopherMartOrderController
+	withdrawController *controller.GopherMartWithdrawController
 }
 
 //swag init --parseDependency --parseInternal -d ./,../../internal/gophermart/router
 //swag fmt -d ./,../../internal/gophermart/router
 
-func CreateRouter(endpoint string) *Router {
-	userRep, orderRep := repoitory.InitDataBase()
-	router := &Router{Echo: echo.New(), Endpoint: endpoint, userController: controller.InitUserController(userRep), orderController: controller.InitOrderController(orderRep)}
+func CreateRouter(endpoint string, userController *controller.GopherMartUserController, orderController *controller.GopherMartOrderController, withdrawController *controller.GopherMartWithdrawController) *Router {
+	router := &Router{
+		Echo:               echo.New(),
+		Endpoint:           endpoint,
+		userController:     userController,
+		orderController:    orderController,
+		withdrawController: withdrawController,
+	}
 	router.GET("/swagger/*", echoSwagger.WrapHandler)
 	router.Use(middleware.Logger())
 	router.Use(middleware.Recover())
@@ -40,7 +45,7 @@ func CreateRouter(endpoint string) *Router {
 	authGroup.POST("orders", router.CreateOrder)
 	authGroup.GET("orders", router.GetOrders)
 	authGroup.GET("balance", router.GetBalance)
-	authGroup.POST("withdraw", router.Withdraw)
+	authGroup.POST("balance/withdraw", router.Withdraw)
 	authGroup.GET("withdrawals", router.GetWithdrawals)
 	return router
 }
@@ -166,6 +171,10 @@ func (r Router) GetOrders(c echo.Context) error {
 	if err != nil {
 		return echo.ErrInternalServerError
 	}
+	if len(orders) == 0 {
+		c.Response().WriteHeader(http.StatusNoContent)
+		return nil
+	}
 	return c.JSONPretty(http.StatusOK, orders, "  ")
 }
 
@@ -201,7 +210,29 @@ func (r Router) GetBalance(c echo.Context) error {
 //	@Failure		500	{object}	echo.HTTPError
 //	@Router			/user/balance/withdraw [post]
 func (r Router) Withdraw(c echo.Context) error {
-	return c.String(http.StatusOK, "Hello, World!")
+	withdrawRequest := new(types.WithdrawRequest)
+	err := c.Bind(withdrawRequest)
+	if err != nil {
+		return echo.ErrBadRequest
+	}
+	err = r.withdrawController.CreateWithdraw(
+		controller.UserLoginFromToken(c.Get("token")),
+		withdrawRequest.Order,
+		withdrawRequest.Sum,
+		r.userController,
+		c.Request().Context(),
+	)
+	if errors.Is(err, controller.ErrInvalidOrderId) {
+		return echo.NewHTTPError(http.StatusUnprocessableEntity)
+	}
+	if errors.Is(err, controller.ErrLowBalance) {
+		return echo.NewHTTPError(http.StatusPaymentRequired)
+	}
+	if err != nil {
+		return echo.ErrInternalServerError
+	}
+	c.Response().WriteHeader(http.StatusOK)
+	return nil
 }
 
 // GetWithdrawals godoc
@@ -215,5 +246,14 @@ func (r Router) Withdraw(c echo.Context) error {
 //	@Failure		500	{object}	echo.HTTPError
 //	@Router			/user/balance [get]
 func (r Router) GetWithdrawals(c echo.Context) error {
-	return c.String(http.StatusOK, "Hello, World!")
+	withdraws, err := r.withdrawController.GetUserWithdrawals(controller.UserLoginFromToken(c.Get("token")), c.Request().Context())
+	if err != nil {
+		fmt.Println(err)
+		return echo.ErrInternalServerError
+	}
+	if len(withdraws) == 0 {
+		c.Response().WriteHeader(http.StatusNoContent)
+		return nil
+	}
+	return c.JSON(http.StatusOK, withdraws)
 }

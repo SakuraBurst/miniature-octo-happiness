@@ -8,22 +8,30 @@ import (
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	"github.com/jackc/pgx/v5"
+	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type GopherMartOrderController struct {
-	repository repoitory.OrderTable
+	repository                repoitory.OrderTable
+	loyaltyServiceBaseAddress *url.URL
 }
 
 var ErrInvalidOrderId = errors.New("invalid order id")
 var ErrExistingOrderForCurrentUser = errors.New("order existing for current user")
 var ErrExistingOrderForAnotherUser = errors.New("order existing for another user")
 
-func InitOrderController(table repoitory.OrderTable) *GopherMartOrderController {
-	return &GopherMartOrderController{repository: table}
+func InitOrderController(table repoitory.OrderTable, loyaltyServiceBaseAddress string) *GopherMartOrderController {
+	fmt.Println(loyaltyServiceBaseAddress)
+	u, err := url.Parse(loyaltyServiceBaseAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return &GopherMartOrderController{repository: table, loyaltyServiceBaseAddress: u}
 }
 
 func (c *GopherMartOrderController) CreateOrder(orderId, login string, userController *GopherMartUserController, context context.Context) error {
@@ -51,13 +59,24 @@ func (c *GopherMartOrderController) CreateOrder(orderId, login string, userContr
 }
 
 func (c *GopherMartOrderController) GetUserOrders(login string, context context.Context) ([]types.Order, error) {
-	return c.repository.GetAllOrdersByLogin(login, context)
+	o, err := c.repository.GetAllOrdersByLogin(login, context)
+	if err == nil {
+		return o, err
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return nil, err
 }
 
 func (c *GopherMartOrderController) checkOrder(login, orderId string, userController *GopherMartUserController) {
+	c.loyaltyServiceBaseAddress.Path = "/api/orders/" + orderId
+	defer func() {
+		c.loyaltyServiceBaseAddress.Path = ""
+	}()
 	for {
 		time.Sleep(time.Millisecond * 500)
-		r, err := http.Get("lol")
+		r, err := http.Get(c.loyaltyServiceBaseAddress.String())
 		if err != nil {
 			c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
 			return

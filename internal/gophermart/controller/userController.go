@@ -24,9 +24,11 @@ type jwtTokenClaims struct {
 
 var ErrExistingUser = errors.New("user already exist")
 var ErrNoExist = errors.New("no exist")
-var secret = []byte("secret")
+var ErrLowBalance = errors.New("low balance")
+var secret []byte
 
-func InitUserController(table repoitory.UserTable) *GopherMartUserController {
+func InitUserController(table repoitory.UserTable, secretTokenKey string) *GopherMartUserController {
+	secret = []byte(secretTokenKey)
 	return &GopherMartUserController{repository: table}
 }
 
@@ -102,6 +104,18 @@ func (uc *GopherMartUserController) UpdateUserBalance(login string, balance floa
 		return err
 	}
 	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance+balance, user.Withdraw, c)
+}
+
+func (uc *GopherMartUserController) WithdrawUserBalance(login string, requestedSum float64, c context.Context) error {
+	user, err := uc.repository.GetUser(login, c)
+	if err != nil {
+		return err
+	}
+	if user.Balance < requestedSum {
+		return ErrLowBalance
+	}
+	fmt.Println(user.Balance-requestedSum, user.Withdraw+requestedSum)
+	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance-requestedSum, user.Withdraw+requestedSum, c)
 }
 
 func (uc *GopherMartUserController) createUserToken(login string) (string, error) {

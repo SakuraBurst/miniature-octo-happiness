@@ -28,14 +28,16 @@ type Order struct {
 }
 
 type WithdrawRequest struct {
-	Order string `json:"order"`
-	Sum   int    `json:"sum"`
+	Order string  `json:"order"`
+	Sum   float64 `json:"sum"`
 }
 
 type Withdraw struct {
-	Order       string    `json:"order"`
-	Sum         int       `json:"sum"`
-	ProcessedAt time.Time `json:"processed_at"`
+	Id          int       `json:"-"`
+	UserLogin   string    `json:"-" db:"user_login"`
+	Order       string    `json:"order" db:"order_id"`
+	Sum         float64   `json:"sum"`
+	ProcessedAt time.Time `json:"processed_at" db:"processed_at"`
 }
 
 type LoyaltyServiceResponse struct {
