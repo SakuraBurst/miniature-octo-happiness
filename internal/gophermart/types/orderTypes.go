@@ -3,12 +3,19 @@ package types
 import "time"
 
 type OrderStatus string
+type LoyaltyServiceStatus string
 
 const (
-	New        OrderStatus = "NEW"
-	Processing OrderStatus = "PROCESSING"
-	Invalid    OrderStatus = "INVALID"
-	Processed  OrderStatus = "PROCESSED"
+	NewOrder        OrderStatus = "NEW"
+	ProcessingOrder OrderStatus = "PROCESSING"
+	InvalidOrder    OrderStatus = "INVALID"
+	ProcessedOrder  OrderStatus = "PROCESSED"
+)
+const (
+	LoyaltyServiceRegistered LoyaltyServiceStatus = "REGISTERED"
+	LoyaltyServiceInvalid    LoyaltyServiceStatus = "INVALID"
+	LoyaltyServiceProcessing LoyaltyServiceStatus = "PROCESSING"
+	LoyaltyServiceProcessed  LoyaltyServiceStatus = "PROCESSED"
 )
 
 type Order struct {
@@ -16,7 +23,7 @@ type Order struct {
 	OrderId    string      `json:"number" db:"order_id"`
 	UserLogin  string      `json:"-" db:"user_login"`
 	Status     OrderStatus `json:"status,omitempty"`
-	Accrual    int         `json:"accrual"`
+	Accrual    float64     `json:"accrual"`
 	UploadedAt time.Time   `json:"uploaded_at" db:"uploaded_at"`
 }
 
@@ -29,4 +36,10 @@ type Withdraw struct {
 	Order       string    `json:"order"`
 	Sum         int       `json:"sum"`
 	ProcessedAt time.Time `json:"processed_at"`
+}
+
+type LoyaltyServiceResponse struct {
+	Order   string               `json:"order"`
+	Status  LoyaltyServiceStatus `json:"status"`
+	Accrual float64              `json:"accrual"`
 }

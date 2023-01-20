@@ -3,6 +3,7 @@ package router
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	_ "github.com/SakuraBurst/miniature-octo-happiness/cmd/gophermart/docs"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/controller"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
@@ -132,7 +133,7 @@ func (r Router) CreateOrder(c echo.Context) error {
 	if buf.Len() == 0 {
 		return echo.ErrBadRequest
 	}
-	err = r.orderController.CreateOrder(buf.String(), controller.UserLoginFromToken(c.Get("token")), c.Request().Context())
+	err = r.orderController.CreateOrder(buf.String(), controller.UserLoginFromToken(c.Get("token")), r.userController, c.Request().Context())
 	if errors.Is(err, controller.ErrInvalidOrderId) {
 		return echo.NewHTTPError(http.StatusUnprocessableEntity)
 	}
@@ -144,6 +145,7 @@ func (r Router) CreateOrder(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusConflict)
 	}
 	if err != nil {
+		fmt.Println(err)
 		return echo.ErrInternalServerError
 	}
 	c.Response().WriteHeader(http.StatusAccepted)

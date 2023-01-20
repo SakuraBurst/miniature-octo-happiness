@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type GopherMartOrderController struct {
@@ -24,7 +26,7 @@ func InitOrderController(table repoitory.OrderTable) *GopherMartOrderController 
 	return &GopherMartOrderController{repository: table}
 }
 
-func (c *GopherMartOrderController) CreateOrder(orderId, login string, context context.Context) error {
+func (c *GopherMartOrderController) CreateOrder(orderId, login string, userController *GopherMartUserController, context context.Context) error {
 	if !Luhn(orderId) {
 		return ErrInvalidOrderId
 	}
@@ -37,14 +39,14 @@ func (c *GopherMartOrderController) CreateOrder(orderId, login string, context c
 		}
 	}
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		fmt.Println(err)
 		return err
 	}
 	err = c.repository.CreateOrder(login, orderId, context)
 	if err != nil {
+
 		return err
 	}
-	go c.checkOrder(orderId)
+	go c.checkOrder(login, orderId, userController)
 	return nil
 }
 
@@ -52,14 +54,38 @@ func (c *GopherMartOrderController) GetUserOrders(login string, context context.
 	return c.repository.GetAllOrdersByLogin(login, context)
 }
 
-func (c *GopherMartOrderController) checkOrder(orderId string) {
+func (c *GopherMartOrderController) checkOrder(login, orderId string, userController *GopherMartUserController) {
 	for {
+		time.Sleep(time.Millisecond * 500)
 		r, err := http.Get("lol")
 		if err != nil {
-			c.repository.UpdateOrder(orderId, types.Invalid, 0, context.Background())
+			c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
 			return
 		}
-		fmt.Println(r)
+		d := json.NewDecoder(r.Body)
+		resp := new(types.LoyaltyServiceResponse)
+		err = d.Decode(resp)
+		if err != nil {
+			c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
+			fmt.Println(err)
+		}
+		if r.Body.Close() != nil {
+			fmt.Println(err)
+		}
+		switch resp.Status {
+		case types.LoyaltyServiceRegistered:
+			continue
+		case types.LoyaltyServiceProcessing:
+			c.repository.UpdateOrder(orderId, types.ProcessingOrder, 0, context.Background())
+			continue
+		case types.LoyaltyServiceProcessed:
+			c.repository.UpdateOrder(orderId, types.ProcessedOrder, resp.Accrual, context.Background())
+			userController.UpdateUserBalance(login, resp.Accrual, context.Background())
+			return
+		case types.LoyaltyServiceInvalid:
+			c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
+			return
+		}
 	}
 }
 

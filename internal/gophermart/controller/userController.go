@@ -96,6 +96,14 @@ func (uc *GopherMartUserController) GetUserBalance(login string, c context.Conte
 	return balance, nil
 }
 
+func (uc *GopherMartUserController) UpdateUserBalance(login string, balance float64, c context.Context) error {
+	user, err := uc.repository.GetUser(login, c)
+	if err != nil {
+		return err
+	}
+	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance+balance, user.Withdraw, c)
+}
+
 func (uc *GopherMartUserController) createUserToken(login string) (string, error) {
 	claims := &jwtTokenClaims{
 		login,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	"github.com/jackc/pgx/v5"
+	"log"
 	"os"
 	"time"
 )
@@ -16,7 +17,7 @@ type userTable struct {
 type UserTable interface {
 	CreateUser(login, hashedPassword string, c context.Context) error
 	GetUser(login string, c context.Context) (*types.User, error)
-	UpdateBalance(login string, newBalance int, c context.Context) error
+	UpdateBalanceAndWithdraw(login string, newBalance, newWithdraw float64, c context.Context) error
 }
 
 func (ut *userTable) CreateUser(login, hashedPassword string, c context.Context) error {
@@ -31,8 +32,8 @@ func (ut *userTable) GetUser(login string, c context.Context) (*types.User, erro
 	return user, err
 }
 
-func (ut *userTable) UpdateBalance(login string, newBalance int, c context.Context) error {
-	_, err := ut.Exec(c, "update users set balance = $2 where login = $1", login, newBalance)
+func (ut *userTable) UpdateBalanceAndWithdraw(login string, newBalance, newWithdraw float64, c context.Context) error {
+	_, err := ut.Exec(c, "update users set balance = $2, withdraw = $3 where login = $1", login, newBalance, newWithdraw)
 	return err
 }
 
@@ -42,17 +43,17 @@ type ordersTable struct {
 
 type OrderTable interface {
 	CreateOrder(login, orderId string, c context.Context) error
-	UpdateOrder(orderId string, status types.OrderStatus, accrual int, c context.Context) error
+	UpdateOrder(orderId string, status types.OrderStatus, accrual float64, c context.Context) error
 	GetOrderByOrderId(orderId string, c context.Context) (*types.Order, error)
 	GetAllOrdersByLogin(login string, c context.Context) ([]types.Order, error)
 }
 
 func (ot *ordersTable) CreateOrder(login, orderId string, c context.Context) error {
-	_, err := ot.Exec(c, "insert into orders(status, user_login, order_id, accrual, uploaded_at) values ( 'NEW',$1, $2)", login, orderId, 0, time.Now())
+	_, err := ot.Exec(c, "insert into orders(status, user_login, order_id, uploaded_at) values ( 'NEW',$1, $2, $3)", login, orderId, time.Now())
 	return err
 }
 
-func (ot *ordersTable) UpdateOrder(orderId string, status types.OrderStatus, accrual int, c context.Context) error {
+func (ot *ordersTable) UpdateOrder(orderId string, status types.OrderStatus, accrual float64, c context.Context) error {
 	_, err := ot.Exec(c, "update orders set status = $2, accrual = $3 where order_id = $1", orderId, status, accrual)
 	return err
 }
@@ -71,10 +72,20 @@ func (ot *ordersTable) GetAllOrdersByLogin(login string, c context.Context) ([]t
 }
 
 func InitDataBase() (UserTable, OrderTable) {
+	configSql, err := os.ReadFile("cmd/gophermart/config/init.sql")
+	if err != nil {
+		log.Fatal(err)
+	}
 	conn, err := pgx.Connect(context.Background(), "postgres://postgres:pescola@localhost:5432/gophermart")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
+	}
+	c, cf := context.WithTimeout(context.Background(), time.Millisecond*500)
+	defer cf()
+	_, err = conn.Exec(c, string(configSql))
+	if err != nil {
+		log.Fatal(err)
 	}
 	return &userTable{conn}, &ordersTable{conn}
 }
