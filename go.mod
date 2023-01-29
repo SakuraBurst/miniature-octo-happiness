@@ -3,7 +3,8 @@ module github.com/SakuraBurst/miniature-octo-happiness
 go 1.18
 
 require (
-	github.com/golang-jwt/jwt v3.2.2+incompatible
+	github.com/caarlos0/env/v6 v6.10.1
+	github.com/golang-jwt/jwt/v4 v4.4.3
 	github.com/jackc/pgx/v5 v5.2.0
 	github.com/labstack/echo-jwt/v4 v4.0.0
 	github.com/labstack/echo/v4 v4.10.0
@@ -14,12 +15,11 @@ require (
 
 require (
 	github.com/KyleBanks/depth v1.2.1 // indirect
-	github.com/caarlos0/env/v6 v6.10.1 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.1 // indirect
 	github.com/go-openapi/spec v0.20.7 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
-	github.com/golang-jwt/jwt/v4 v4.4.3 // indirect
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/josharian/intern v1.0.0 // indirect
