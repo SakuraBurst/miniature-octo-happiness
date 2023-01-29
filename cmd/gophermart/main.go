@@ -37,6 +37,7 @@ func main() {
 	if err := env.Parse(cfg); err != nil {
 		log.Fatal(err)
 	}
+	checkFlags(cfg)
 	userRep, orderRep, withdrawRep := repoitory.InitDataBase(cfg.DataBaseURI)
 	userController := controller.InitUserController(userRep, cfg.SecretTokenKey)
 	orderController := controller.InitOrderController(orderRep, cfg.LoyaltyServiceAddress)

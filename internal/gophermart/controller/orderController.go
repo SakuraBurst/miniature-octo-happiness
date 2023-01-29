@@ -78,32 +78,54 @@ func (c *GopherMartOrderController) checkOrder(login, orderId string, userContro
 		time.Sleep(time.Millisecond * 500)
 		r, err := http.Get(c.loyaltyServiceBaseAddress.String())
 		if err != nil {
-			c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
+			err = c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
+			if err != nil {
+				log.Println(err)
+			}
 			return
 		}
-		d := json.NewDecoder(r.Body)
 		resp := new(types.LoyaltyServiceResponse)
-		err = d.Decode(resp)
+		err = json.NewDecoder(r.Body).Decode(resp)
 		if err != nil {
-			c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
-			fmt.Println(err)
+			log.Println(err)
+			err = c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
+			if err != nil {
+				log.Println(err)
+			}
+			return
 		}
 		if r.Body.Close() != nil {
-			fmt.Println(err)
+			log.Println(err)
+			return
 		}
 		switch resp.Status {
 		case types.LoyaltyServiceRegistered:
 			continue
 		case types.LoyaltyServiceProcessing:
-			c.repository.UpdateOrder(orderId, types.ProcessingOrder, 0, context.Background())
+			err = c.repository.UpdateOrder(orderId, types.ProcessingOrder, 0, context.Background())
+			if err != nil {
+				break
+			}
 			continue
 		case types.LoyaltyServiceProcessed:
-			c.repository.UpdateOrder(orderId, types.ProcessedOrder, resp.Accrual, context.Background())
-			userController.UpdateUserBalance(login, resp.Accrual, context.Background())
+			err = c.repository.UpdateOrder(orderId, types.ProcessedOrder, resp.Accrual, context.Background())
+			if err != nil {
+				log.Println(err)
+			}
+			err = userController.UpdateUserBalance(login, resp.Accrual, context.Background())
+			if err != nil {
+				log.Println(err)
+			}
 			return
 		case types.LoyaltyServiceInvalid:
-			c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
+			err = c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
+			if err != nil {
+				log.Println(err)
+			}
 			return
+		}
+		if err != nil {
+			break
 		}
 	}
 }

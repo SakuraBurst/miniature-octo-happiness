@@ -37,10 +37,10 @@ func CreateRouter(endpoint string, userController *controller.GopherMartUserCont
 	router.GET("/swagger/*", echoSwagger.WrapHandler)
 	router.Use(middleware.Logger())
 	router.Use(middleware.Recover())
-	userApi := router.Group("/api/user")
-	userApi.POST("/register", router.Register)
-	userApi.POST("/login", router.Login)
-	authGroup := userApi.Group("/")
+	userAPI := router.Group("/api/user")
+	userAPI.POST("/register", router.Register)
+	userAPI.POST("/login", router.Login)
+	authGroup := userAPI.Group("/")
 	authGroup.Use(echojwt.WithConfig(controller.UserTokenConfig()))
 	authGroup.POST("orders", router.CreateOrder)
 	authGroup.GET("orders", router.GetOrders)
@@ -65,8 +65,8 @@ func CreateRouter(endpoint string, userController *controller.GopherMartUserCont
 //	@Router			/user/register [post]
 func (r Router) Register(c echo.Context) error {
 	userRequest := new(types.UserRequest)
-	c.Bind(userRequest)
-	if !userRequest.IsValid() {
+	err := c.Bind(userRequest)
+	if err != nil || !userRequest.IsValid() {
 		return echo.ErrBadRequest
 	}
 	t, err := r.userController.Register(userRequest.Login, userRequest.Password, c.Request().Context())
@@ -95,8 +95,8 @@ func (r Router) Register(c echo.Context) error {
 //	@Router			/user/login [post]
 func (r Router) Login(c echo.Context) error {
 	userRequest := new(types.UserRequest)
-	c.Bind(userRequest)
-	if !userRequest.IsValid() {
+	err := c.Bind(userRequest)
+	if err != nil || !userRequest.IsValid() {
 		return echo.ErrBadRequest
 	}
 	t, err := r.userController.Login(userRequest.Login, userRequest.Password, c.Request().Context())

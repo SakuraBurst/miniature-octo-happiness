@@ -37,7 +37,7 @@ func InitDataBase(address string) (UserTable, OrderTable, WithdrawTable) {
 	defer cf()
 	conn, err := pgx.Connect(c, address)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		fmt.Printf("Unable to connect to database: %v\n", err)
 		os.Exit(1)
 	}
 	_, err = conn.Exec(c, string(configSql))
