@@ -75,7 +75,7 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 		c.loyaltyServiceBaseAddress.Path = ""
 	}()
 	for {
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Millisecond * 50)
 		r, err := http.Get(c.loyaltyServiceBaseAddress.String())
 		if err != nil {
 			err = c.repository.UpdateOrder(orderID, types.InvalidOrder, 0, context.Background())
