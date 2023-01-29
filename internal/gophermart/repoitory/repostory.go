@@ -17,14 +17,14 @@ type UserTable interface {
 }
 
 type OrderTable interface {
-	CreateOrder(login, orderId string, c context.Context) error
-	UpdateOrder(orderId string, status types.OrderStatus, accrual float64, c context.Context) error
-	GetOrderByOrderId(orderId string, c context.Context) (*types.Order, error)
+	CreateOrder(login, orderID string, c context.Context) error
+	UpdateOrder(orderID string, status types.OrderStatus, accrual float64, c context.Context) error
+	GetOrderByOrderID(orderID string, c context.Context) (*types.Order, error)
 	GetAllOrdersByLogin(login string, c context.Context) ([]types.Order, error)
 }
 
 type WithdrawTable interface {
-	CreateWithdraw(login, orderId string, sum float64, c context.Context) error
+	CreateWithdraw(login, orderID string, sum float64, c context.Context) error
 	GetAllWithdrawalsByLogin(login string, c context.Context) ([]types.Withdraw, error)
 }
 

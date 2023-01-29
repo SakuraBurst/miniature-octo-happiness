@@ -19,8 +19,8 @@ const (
 )
 
 type Order struct {
-	Id         int         `json:"-"`
-	OrderId    string      `json:"number" db:"order_id"`
+	ID         int         `json:"-"`
+	OrderID    string      `json:"number" db:"order_id"`
 	UserLogin  string      `json:"-" db:"user_login"`
 	Status     OrderStatus `json:"status,omitempty"`
 	Accrual    float64     `json:"accrual"`
@@ -33,7 +33,7 @@ type WithdrawRequest struct {
 }
 
 type Withdraw struct {
-	Id          int       `json:"-"`
+	ID          int       `json:"-"`
 	UserLogin   string    `json:"-" db:"user_login"`
 	Order       string    `json:"order" db:"order_id"`
 	Sum         float64   `json:"sum"`

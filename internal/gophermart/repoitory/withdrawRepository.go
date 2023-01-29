@@ -11,8 +11,8 @@ type withdrawTable struct {
 	*pgx.Conn
 }
 
-func (wt *withdrawTable) CreateWithdraw(login, orderId string, sum float64, c context.Context) error {
-	_, err := wt.Exec(c, "insert into withdraws(user_login, order_id, sum, processed_at) values ($1, $2, $3, $4)", login, orderId, sum, time.Now())
+func (wt *withdrawTable) CreateWithdraw(login, orderID string, sum float64, c context.Context) error {
+	_, err := wt.Exec(c, "insert into withdraws(user_login, order_id, sum, processed_at) values ($1, $2, $3, $4)", login, orderID, sum, time.Now())
 	return err
 }
 

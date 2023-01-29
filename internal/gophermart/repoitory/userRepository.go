@@ -18,7 +18,7 @@ func (ut *userTable) CreateUser(login, hashedPassword string, c context.Context)
 func (ut *userTable) GetUser(login string, c context.Context) (*types.User, error) {
 	r := ut.QueryRow(c, "select * from users where login = $1", login)
 	user := new(types.User)
-	err := r.Scan(&user.Id, &user.Login, &user.Password, &user.Balance, &user.Withdraw)
+	err := r.Scan(&user.ID, &user.Login, &user.Password, &user.Balance, &user.Withdraw)
 	return user, err
 }
 

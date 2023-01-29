@@ -16,15 +16,15 @@ func InitWithdrawController(table repoitory.WithdrawTable) *GopherMartWithdrawCo
 	return &GopherMartWithdrawController{repository: table}
 }
 
-func (c *GopherMartWithdrawController) CreateWithdraw(login, orderId string, sum float64, userController *GopherMartUserController, context context.Context) error {
-	if !Luhn(orderId) {
-		return ErrInvalidOrderId
+func (c *GopherMartWithdrawController) CreateWithdraw(login, orderID string, sum float64, userController *GopherMartUserController, context context.Context) error {
+	if !Luhn(orderID) {
+		return ErrInvalidOrderID
 	}
 	err := userController.WithdrawUserBalance(login, sum, context)
 	if err != nil {
 		return err
 	}
-	return c.repository.CreateWithdraw(login, orderId, sum, context)
+	return c.repository.CreateWithdraw(login, orderID, sum, context)
 }
 
 func (c *GopherMartWithdrawController) GetUserWithdrawals(login string, context context.Context) ([]types.Withdraw, error) {

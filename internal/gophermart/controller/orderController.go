@@ -21,7 +21,7 @@ type GopherMartOrderController struct {
 	loyaltyServiceBaseAddress *url.URL
 }
 
-var ErrInvalidOrderId = errors.New("invalid order id")
+var ErrInvalidOrderID = errors.New("invalid order id")
 var ErrExistingOrderForCurrentUser = errors.New("order existing for current user")
 var ErrExistingOrderForAnotherUser = errors.New("order existing for another user")
 
@@ -34,11 +34,11 @@ func InitOrderController(table repoitory.OrderTable, loyaltyServiceBaseAddress s
 	return &GopherMartOrderController{repository: table, loyaltyServiceBaseAddress: u}
 }
 
-func (c *GopherMartOrderController) CreateOrder(orderId, login string, userController *GopherMartUserController, context context.Context) error {
-	if !Luhn(orderId) {
-		return ErrInvalidOrderId
+func (c *GopherMartOrderController) CreateOrder(orderID, login string, userController *GopherMartUserController, context context.Context) error {
+	if !Luhn(orderID) {
+		return ErrInvalidOrderID
 	}
-	order, err := c.repository.GetOrderByOrderId(orderId, context)
+	order, err := c.repository.GetOrderByOrderID(orderID, context)
 	if err == nil {
 		if order.UserLogin == login {
 			return ErrExistingOrderForCurrentUser
@@ -49,12 +49,12 @@ func (c *GopherMartOrderController) CreateOrder(orderId, login string, userContr
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return err
 	}
-	err = c.repository.CreateOrder(login, orderId, context)
+	err = c.repository.CreateOrder(login, orderID, context)
 	if err != nil {
 
 		return err
 	}
-	go c.checkOrder(login, orderId, userController)
+	go c.checkOrder(login, orderID, userController)
 	return nil
 }
 
@@ -69,8 +69,8 @@ func (c *GopherMartOrderController) GetUserOrders(login string, context context.
 	return nil, err
 }
 
-func (c *GopherMartOrderController) checkOrder(login, orderId string, userController *GopherMartUserController) {
-	c.loyaltyServiceBaseAddress.Path = "/api/orders/" + orderId
+func (c *GopherMartOrderController) checkOrder(login, orderID string, userController *GopherMartUserController) {
+	c.loyaltyServiceBaseAddress.Path = "/api/orders/" + orderID
 	defer func() {
 		c.loyaltyServiceBaseAddress.Path = ""
 	}()
@@ -78,7 +78,7 @@ func (c *GopherMartOrderController) checkOrder(login, orderId string, userContro
 		time.Sleep(time.Millisecond * 500)
 		r, err := http.Get(c.loyaltyServiceBaseAddress.String())
 		if err != nil {
-			err = c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
+			err = c.repository.UpdateOrder(orderID, types.InvalidOrder, 0, context.Background())
 			if err != nil {
 				log.Println(err)
 			}
@@ -88,7 +88,7 @@ func (c *GopherMartOrderController) checkOrder(login, orderId string, userContro
 		err = json.NewDecoder(r.Body).Decode(resp)
 		if err != nil {
 			log.Println(err)
-			err = c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
+			err = c.repository.UpdateOrder(orderID, types.InvalidOrder, 0, context.Background())
 			if err != nil {
 				log.Println(err)
 			}
@@ -102,13 +102,13 @@ func (c *GopherMartOrderController) checkOrder(login, orderId string, userContro
 		case types.LoyaltyServiceRegistered:
 			continue
 		case types.LoyaltyServiceProcessing:
-			err = c.repository.UpdateOrder(orderId, types.ProcessingOrder, 0, context.Background())
+			err = c.repository.UpdateOrder(orderID, types.ProcessingOrder, 0, context.Background())
 			if err != nil {
 				break
 			}
 			continue
 		case types.LoyaltyServiceProcessed:
-			err = c.repository.UpdateOrder(orderId, types.ProcessedOrder, resp.Accrual, context.Background())
+			err = c.repository.UpdateOrder(orderID, types.ProcessedOrder, resp.Accrual, context.Background())
 			if err != nil {
 				log.Println(err)
 			}
@@ -118,7 +118,7 @@ func (c *GopherMartOrderController) checkOrder(login, orderId string, userContro
 			}
 			return
 		case types.LoyaltyServiceInvalid:
-			err = c.repository.UpdateOrder(orderId, types.InvalidOrder, 0, context.Background())
+			err = c.repository.UpdateOrder(orderID, types.InvalidOrder, 0, context.Background())
 			if err != nil {
 				log.Println(err)
 			}

@@ -1,7 +1,7 @@
 package types
 
 type User struct {
-	Id       int
+	ID       int
 	Login    string
 	Password string
 	Balance  float64

@@ -139,7 +139,7 @@ func (r Router) CreateOrder(c echo.Context) error {
 		return echo.ErrBadRequest
 	}
 	err = r.orderController.CreateOrder(buf.String(), controller.UserLoginFromToken(c.Get("token")), r.userController, c.Request().Context())
-	if errors.Is(err, controller.ErrInvalidOrderId) {
+	if errors.Is(err, controller.ErrInvalidOrderID) {
 		return echo.NewHTTPError(http.StatusUnprocessableEntity)
 	}
 	if errors.Is(err, controller.ErrExistingOrderForCurrentUser) {
@@ -222,7 +222,7 @@ func (r Router) Withdraw(c echo.Context) error {
 		r.userController,
 		c.Request().Context(),
 	)
-	if errors.Is(err, controller.ErrInvalidOrderId) {
+	if errors.Is(err, controller.ErrInvalidOrderID) {
 		return echo.NewHTTPError(http.StatusUnprocessableEntity)
 	}
 	if errors.Is(err, controller.ErrLowBalance) {
