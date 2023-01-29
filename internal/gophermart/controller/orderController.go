@@ -46,7 +46,7 @@ func (c *GopherMartOrderController) CreateOrder(orderID, login string, userContr
 			return ErrExistingOrderForAnotherUser
 		}
 	}
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return err
 	}
 	err = c.repository.CreateOrder(login, orderID, context)

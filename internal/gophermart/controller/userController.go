@@ -53,7 +53,7 @@ func (uc *GopherMartUserController) Register(login, password string, c context.C
 	if err == nil {
 		return "", ErrExistingUser
 	}
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+	if !errors.Is(err, pgx.ErrNoRows) {
 		fmt.Println(err)
 		return "", err
 	}
