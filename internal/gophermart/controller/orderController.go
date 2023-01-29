@@ -75,7 +75,6 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 		c.loyaltyServiceBaseAddress.Path = ""
 	}()
 	for {
-		time.Sleep(time.Millisecond * 50)
 		r, err := http.Get(c.loyaltyServiceBaseAddress.String())
 		if err != nil {
 			err = c.repository.UpdateOrder(orderID, types.InvalidOrder, 0, context.Background())
@@ -99,14 +98,11 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 			return
 		}
 		switch resp.Status {
-		case types.LoyaltyServiceRegistered:
-			continue
 		case types.LoyaltyServiceProcessing:
 			err = c.repository.UpdateOrder(orderID, types.ProcessingOrder, 0, context.Background())
 			if err != nil {
 				break
 			}
-			continue
 		case types.LoyaltyServiceProcessed:
 			err = c.repository.UpdateOrder(orderID, types.ProcessedOrder, resp.Accrual, context.Background())
 			if err != nil {
@@ -124,9 +120,7 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 			}
 			return
 		}
-		if err != nil {
-			break
-		}
+		time.Sleep(time.Millisecond * 50)
 	}
 }
 
