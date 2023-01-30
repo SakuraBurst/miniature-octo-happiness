@@ -95,6 +95,7 @@ func (uc *GopherMartUserController) GetUserBalance(login string, c context.Conte
 	balance := new(types.UserBalance)
 	balance.CurrentBalance = user.Balance
 	balance.Withdraw = user.Withdraw
+	fmt.Println(balance.CurrentBalance, balance.Withdraw)
 	return balance, nil
 }
 
