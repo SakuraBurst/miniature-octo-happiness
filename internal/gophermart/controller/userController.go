@@ -116,6 +116,7 @@ func (uc *GopherMartUserController) WithdrawUserBalance(login string, requestedS
 		return ErrLowBalance
 	}
 	user.WithdrawBalance(requestedSum)
+	fmt.Println(user.Balance, user.Withdraw)
 	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance, user.Withdraw, c)
 }
 
