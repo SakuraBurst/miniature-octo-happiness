@@ -1,9 +1,5 @@
 package types
 
-import (
-	"math"
-)
-
 type User struct {
 	ID       int
 	Login    string
@@ -27,14 +23,10 @@ func (ur *UserRequest) IsValid() bool {
 }
 
 func (u *User) AddBalance(sum float64) {
-	u.Balance = roundFloat(u.Balance + sum)
+	u.Balance = u.Balance + sum
 }
 
 func (u *User) WithdrawBalance(requestedSum float64) {
-	u.Balance = roundFloat(u.Balance - requestedSum)
-	u.Withdraw = roundFloat(u.Withdraw + requestedSum)
-}
-
-func roundFloat(v float64) float64 {
-	return math.Round(v*100) / 100
+	u.Balance = u.Balance - requestedSum
+	u.Withdraw = u.Withdraw + requestedSum
 }
