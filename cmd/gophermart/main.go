@@ -2,8 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"strconv"
+	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/controller"
+	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
+	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/router"
+	"github.com/caarlos0/env/v6"
+	"log"
 )
 
 type config struct {
@@ -30,7 +33,17 @@ type config struct {
 
 // @securityDefinitions.basic	BasicAuth
 func main() {
-	fmt.Println(strconv.FormatFloat(310.2262268066406, 'f', 2, 32))
+	cfg := new(config)
+	if err := env.Parse(cfg); err != nil {
+		log.Fatal(err)
+	}
+	checkFlags(cfg)
+	userRep, orderRep, withdrawRep := repoitory.InitDataBase(cfg.DataBaseURI)
+	userController := controller.InitUserController(userRep, cfg.SecretTokenKey)
+	orderController := controller.InitOrderController(orderRep, cfg.LoyaltyServiceAddress)
+	withdrawController := controller.InitWithdrawController(withdrawRep)
+	r := router.CreateRouter(":8080", userController, orderController, withdrawController)
+	r.Logger.Fatal(r.Start(r.Endpoint))
 }
 
 func checkFlags(cfg *config) {
