@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	"github.com/jackc/pgx/v5"
@@ -26,7 +25,6 @@ var ErrExistingOrderForCurrentUser = errors.New("order existing for current user
 var ErrExistingOrderForAnotherUser = errors.New("order existing for another user")
 
 func InitOrderController(table repoitory.OrderTable, loyaltyServiceBaseAddress string) *GopherMartOrderController {
-	fmt.Println(loyaltyServiceBaseAddress)
 	u, err := url.Parse(loyaltyServiceBaseAddress)
 	if err != nil {
 		log.Fatal(err)

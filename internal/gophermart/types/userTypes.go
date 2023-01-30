@@ -15,7 +15,7 @@ type UserRequest struct {
 
 type UserBalance struct {
 	CurrentBalance float64 `json:"current"`
-	Withdraw       float64 `json:"withdraw"`
+	Withdraw       float64 `json:"withdrawn"`
 }
 
 func (ur *UserRequest) IsValid() bool {

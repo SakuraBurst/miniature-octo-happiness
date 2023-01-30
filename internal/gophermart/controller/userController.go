@@ -76,7 +76,6 @@ func (uc *GopherMartUserController) Login(login, password string, c context.Cont
 	if err != nil {
 		return "", err
 	}
-	fmt.Println(user, login, password)
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 		return "", ErrNoExist
@@ -95,7 +94,6 @@ func (uc *GopherMartUserController) GetUserBalance(login string, c context.Conte
 	balance := new(types.UserBalance)
 	balance.CurrentBalance = user.Balance
 	balance.Withdraw = user.Withdraw
-	fmt.Println(balance.CurrentBalance, balance.Withdraw)
 	return balance, nil
 }
 
@@ -117,7 +115,6 @@ func (uc *GopherMartUserController) WithdrawUserBalance(login string, requestedS
 		return ErrLowBalance
 	}
 	user.WithdrawBalance(requestedSum)
-	fmt.Println(user.Balance, user.Withdraw)
 	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance, user.Withdraw, c)
 }
 
