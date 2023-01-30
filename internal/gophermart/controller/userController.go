@@ -114,8 +114,8 @@ func (uc *GopherMartUserController) WithdrawUserBalance(login string, requestedS
 	if user.Balance < requestedSum {
 		return ErrLowBalance
 	}
-	fmt.Println(user.Balance-requestedSum, user.Withdraw+requestedSum)
-	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance-requestedSum, user.Withdraw+requestedSum, c)
+	user.UpdateBalance(requestedSum)
+	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance, user.Withdraw, c)
 }
 
 func (uc *GopherMartUserController) createUserToken(login string) (string, error) {
