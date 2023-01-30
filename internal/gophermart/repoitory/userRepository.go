@@ -2,6 +2,7 @@ package repoitory
 
 import (
 	"context"
+	"fmt"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	"github.com/jackc/pgx/v5"
 )
@@ -19,6 +20,7 @@ func (ut *userTable) GetUser(login string, c context.Context) (*types.User, erro
 	r := ut.QueryRow(c, "select * from users where login = $1", login)
 	user := new(types.User)
 	err := r.Scan(&user.ID, &user.Login, &user.Password, &user.Balance, &user.Withdraw)
+	fmt.Println(user.Balance, user.Withdraw)
 	return user, err
 }
 
