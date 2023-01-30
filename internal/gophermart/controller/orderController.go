@@ -112,7 +112,7 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 			if err != nil {
 				log.Println(err)
 			}
-			err = userController.UpdateUserBalance(login, resp.Accrual, context.Background())
+			err = userController.AddUserBalance(login, resp.Accrual, context.Background())
 			if err != nil {
 				log.Println(err)
 			}

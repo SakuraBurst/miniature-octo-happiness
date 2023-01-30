@@ -98,11 +98,12 @@ func (uc *GopherMartUserController) GetUserBalance(login string, c context.Conte
 	return balance, nil
 }
 
-func (uc *GopherMartUserController) UpdateUserBalance(login string, balance float64, c context.Context) error {
+func (uc *GopherMartUserController) AddUserBalance(login string, balance float64, c context.Context) error {
 	user, err := uc.repository.GetUser(login, c)
 	if err != nil {
 		return err
 	}
+	user.AddBalance(balance)
 	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance+balance, user.Withdraw, c)
 }
 
@@ -114,7 +115,7 @@ func (uc *GopherMartUserController) WithdrawUserBalance(login string, requestedS
 	if user.Balance < requestedSum {
 		return ErrLowBalance
 	}
-	user.UpdateBalance(requestedSum)
+	user.WithdrawBalance(requestedSum)
 	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance, user.Withdraw, c)
 }
 

@@ -26,7 +26,11 @@ func (ur *UserRequest) IsValid() bool {
 	return !(len(ur.Login) == 0 || len(ur.Password) == 0)
 }
 
-func (u *User) UpdateBalance(requestedSum float64) {
+func (u *User) AddBalance(sum float64) {
+	u.Balance = roundFloat(u.Balance + sum)
+}
+
+func (u *User) WithdrawBalance(requestedSum float64) {
 	u.Balance = roundFloat(u.Balance - requestedSum)
 	u.Withdraw = roundFloat(u.Withdraw + requestedSum)
 }
