@@ -104,7 +104,7 @@ func (uc *GopherMartUserController) AddUserBalance(login string, balance float64
 		return err
 	}
 	user.AddBalance(balance)
-	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance+balance, user.Withdraw, c)
+	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance, user.Withdraw, c)
 }
 
 func (uc *GopherMartUserController) WithdrawUserBalance(login string, requestedSum float64, c context.Context) error {
