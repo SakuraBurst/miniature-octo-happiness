@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
+	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repository"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	"github.com/jackc/pgx/v5"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -16,20 +16,24 @@ import (
 )
 
 type GopherMartOrderController struct {
-	repository                repoitory.OrderTable
+	repository                repository.OrderTable
 	loyaltyServiceBaseAddress *url.URL
+	checkOrderQueue           chan struct{}
+	isQueueClosed             bool
 }
 
 var ErrInvalidOrderID = errors.New("invalid order id")
 var ErrExistingOrderForCurrentUser = errors.New("order existing for current user")
 var ErrExistingOrderForAnotherUser = errors.New("order existing for another user")
+var ErrShutdown = errors.New("server is shutting down")
 
-func InitOrderController(table repoitory.OrderTable, loyaltyServiceBaseAddress string) *GopherMartOrderController {
+func InitOrderController(table repository.OrderTable, loyaltyServiceBaseAddress string) (*GopherMartOrderController, error) {
 	u, err := url.Parse(loyaltyServiceBaseAddress)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		return nil, err
 	}
-	return &GopherMartOrderController{repository: table, loyaltyServiceBaseAddress: u}
+	return &GopherMartOrderController{repository: table, loyaltyServiceBaseAddress: u, checkOrderQueue: make(chan struct{}, 10)}, nil
 }
 
 func (c *GopherMartOrderController) CreateOrder(orderID, login string, userController *GopherMartUserController, context context.Context) error {
@@ -45,6 +49,7 @@ func (c *GopherMartOrderController) CreateOrder(orderID, login string, userContr
 		}
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
+		log.Error(err)
 		return err
 	}
 	err = c.repository.CreateOrder(login, orderID, context)
@@ -52,13 +57,27 @@ func (c *GopherMartOrderController) CreateOrder(orderID, login string, userContr
 
 		return err
 	}
+	if c.isQueueClosed {
+		return ErrShutdown
+	}
+	c.checkOrderQueue <- struct{}{}
 	go c.checkOrder(login, orderID, userController)
 	return nil
+}
+
+func (c *GopherMartOrderController) CloseQueue() {
+	close(c.checkOrderQueue)
+	c.isQueueClosed = true
+}
+
+func (c *GopherMartOrderController) IsQueueEmpty() bool {
+	return len(c.checkOrderQueue) == 0
 }
 
 func (c *GopherMartOrderController) GetUserOrders(login string, context context.Context) ([]types.Order, error) {
 	o, err := c.repository.GetAllOrdersByLogin(login, context)
 	if err == nil {
+		log.Error(err)
 		return o, err
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -71,6 +90,7 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 	c.loyaltyServiceBaseAddress.Path = "/api/orders/" + orderID
 	defer func() {
 		c.loyaltyServiceBaseAddress.Path = ""
+		<-c.checkOrderQueue
 	}()
 	for {
 		time.Sleep(time.Millisecond * 100)
@@ -78,14 +98,14 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 		if err != nil {
 			err = c.repository.UpdateOrder(orderID, types.InvalidOrder, 0, context.Background())
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 			}
 			return
 		}
 		resp := new(types.LoyaltyServiceResponse)
 		err = json.NewDecoder(r.Body).Decode(resp)
 		if err != nil {
-			log.Println(err)
+			log.Error(err)
 			err = c.repository.UpdateOrder(orderID, types.InvalidOrder, 0, context.Background())
 			if err != nil {
 				log.Println(err)
@@ -93,7 +113,7 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 			return
 		}
 		if r.Body.Close() != nil {
-			log.Println(err)
+			log.Error(err)
 			return
 		}
 		switch resp.Status {
@@ -108,17 +128,17 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 		case types.LoyaltyServiceProcessed:
 			err = c.repository.UpdateOrder(orderID, types.ProcessedOrder, resp.Accrual, context.Background())
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 			}
 			err = userController.AddUserBalance(login, resp.Accrual, context.Background())
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 			}
 			return
 		case types.LoyaltyServiceInvalid:
 			err = c.repository.UpdateOrder(orderID, types.InvalidOrder, 0, context.Background())
 			if err != nil {
-				log.Println(err)
+				log.Error(err)
 			}
 			return
 		}

@@ -1,11 +1,10 @@
-package repoitory
+package repository
 
 import (
 	"context"
-	"fmt"
+	"database/sql/driver"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	"github.com/jackc/pgx/v5"
-	"log"
 	"os"
 	"time"
 )
@@ -28,21 +27,25 @@ type WithdrawTable interface {
 	GetAllWithdrawalsByLogin(login string, c context.Context) ([]types.Withdraw, error)
 }
 
-func InitDataBase(address string) (UserTable, OrderTable, WithdrawTable) {
+type DB interface {
+	driver.Pinger
+	Close(ctx context.Context) error
+}
+
+func InitDataBase(address string) (UserTable, OrderTable, WithdrawTable, DB, error) {
 	configSql, err := os.ReadFile("cmd/gophermart/config/init.sql")
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, nil, nil, err
 	}
 	c, cf := context.WithTimeout(context.Background(), time.Second)
 	defer cf()
 	conn, err := pgx.Connect(c, address)
 	if err != nil {
-		fmt.Printf("Unable to connect to database: %v\n", err)
-		os.Exit(1)
+		return nil, nil, nil, nil, err
 	}
 	_, err = conn.Exec(c, string(configSql))
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, nil, nil, err
 	}
-	return &userTable{conn}, &ordersTable{conn}, &withdrawTable{conn}
+	return &userTable{conn}, &ordersTable{conn}, &withdrawTable{conn}, conn, nil
 }

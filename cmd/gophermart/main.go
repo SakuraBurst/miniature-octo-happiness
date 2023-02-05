@@ -1,13 +1,29 @@
 package main
 
 import (
+	"context"
+	"database/sql/driver"
+	"errors"
 	"flag"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/controller"
-	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
+	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repository"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/router"
 	"github.com/caarlos0/env/v6"
-	"log"
+	log "github.com/sirupsen/logrus"
+	"net/http"
+	"os"
+	"os/signal"
+	"time"
 )
+
+type appState int
+
+const (
+	appStateRunning  appState = iota
+	appStateShutdown appState = iota
+)
+
+var currentState appState = -1
 
 type config struct {
 	ServerAddress         string `env:"RUN_ADDRESS" envDefault:"localhost:8080"`
@@ -34,16 +50,78 @@ type config struct {
 // @securityDefinitions.basic	BasicAuth
 func main() {
 	cfg := new(config)
+	log.SetReportCaller(true)
 	if err := env.Parse(cfg); err != nil {
 		log.Fatal(err)
 	}
 	checkFlags(cfg)
-	userRep, orderRep, withdrawRep := repoitory.InitDataBase(cfg.DataBaseURI)
+	userRep, orderRep, withdrawRep, db, err := repository.InitDataBase(cfg.DataBaseURI)
+	if err != nil {
+		log.Fatal(err)
+	}
 	userController := controller.InitUserController(userRep, cfg.SecretTokenKey)
-	orderController := controller.InitOrderController(orderRep, cfg.LoyaltyServiceAddress)
+	orderController, err := controller.InitOrderController(orderRep, cfg.LoyaltyServiceAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
 	withdrawController := controller.InitWithdrawController(withdrawRep)
 	r := router.CreateRouter(":8080", userController, orderController, withdrawController)
-	r.Logger.Fatal(r.Start(r.Endpoint))
+	go func() {
+		currentState = appStateRunning
+		if err := r.Start(r.Endpoint); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
+
+	sigChan := make(chan os.Signal, 1)
+	watcherChan := make(chan struct{})
+	signal.Notify(sigChan, os.Interrupt)
+	go func() {
+		defer close(sigChan)
+		defer close(watcherChan)
+		dbWatch(db)
+	}()
+	<-sigChan
+	log.Info("server is shutting down")
+	currentState = appStateShutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := r.Shutdown(ctx); err != nil {
+		log.Fatal(err)
+	}
+	log.Info("router is shut down")
+	<-watcherChan
+	shutdown(orderController, db)
+}
+
+func shutdown(orderRep *controller.GopherMartOrderController, db repository.DB) {
+	orderRep.CloseQueue()
+	for !orderRep.IsQueueEmpty() {
+		time.Sleep(time.Millisecond * 50)
+	}
+	log.Info("queue is cleared")
+	ctx, cl := context.WithTimeout(context.Background(), time.Second)
+	defer cl()
+	if err := db.Close(ctx); err != nil {
+		log.Error(err)
+	}
+	log.Info("db is closed")
+}
+
+func dbWatch(pinger driver.Pinger) {
+	for {
+		if currentState != appStateRunning {
+			return
+		}
+		ctx, cl := context.WithTimeout(context.Background(), time.Millisecond*500)
+		err := pinger.Ping(ctx)
+		if err != nil {
+			cl()
+			return
+		}
+		cl()
+		time.Sleep(time.Millisecond * 500)
+	}
 }
 
 func checkFlags(cfg *config) {

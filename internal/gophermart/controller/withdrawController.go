@@ -3,16 +3,16 @@ package controller
 import (
 	"context"
 	"errors"
-	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
+	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repository"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	"github.com/jackc/pgx/v5"
 )
 
 type GopherMartWithdrawController struct {
-	repository repoitory.WithdrawTable
+	repository repository.WithdrawTable
 }
 
-func InitWithdrawController(table repoitory.WithdrawTable) *GopherMartWithdrawController {
+func InitWithdrawController(table repository.WithdrawTable) *GopherMartWithdrawController {
 	return &GopherMartWithdrawController{repository: table}
 }
 
