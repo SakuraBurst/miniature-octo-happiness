@@ -1,6 +1,6 @@
 module github.com/SakuraBurst/miniature-octo-happiness
 
-go 1.18
+go 1.19
 
 require (
 	github.com/caarlos0/env/v6 v6.10.1
