@@ -62,8 +62,6 @@ func main() {
 	userController := controller.InitUserController(userRep, cfg.SecretTokenKey)
 	orderController, err := controller.InitOrderController(orderRep, cfg.LoyaltyServiceAddress)
 	if err != nil {
-		log.Info(err)
-		time.Sleep(time.Second * 3)
 		log.Fatal(err)
 	}
 	withdrawController := controller.InitWithdrawController(withdrawRep)

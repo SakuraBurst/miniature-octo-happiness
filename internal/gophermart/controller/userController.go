@@ -119,7 +119,7 @@ func (uc *GopherMartUserController) WithdrawUserBalance(login string, requestedS
 		log.Error(err)
 		return err
 	}
-	if uc.checkUserHaveRequestedSum(user, requestedSum) {
+	if !uc.checkUserHaveRequestedSum(user, requestedSum) {
 		return ErrLowBalance
 	}
 	user.WithdrawBalance(requestedSum)
@@ -127,10 +127,7 @@ func (uc *GopherMartUserController) WithdrawUserBalance(login string, requestedS
 }
 
 func (uc *GopherMartUserController) checkUserHaveRequestedSum(user *types.User, requestedSum float64) bool {
-	if user.Balance < requestedSum {
-		return false
-	}
-	return true
+	return user.Balance >= requestedSum
 }
 
 func (uc *GopherMartUserController) createUserToken(login string) (string, error) {
