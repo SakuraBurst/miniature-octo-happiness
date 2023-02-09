@@ -134,6 +134,7 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 		case types.LoyaltyServiceProcessing:
 			err = c.repository.UpdateOrder(orderID, types.ProcessingOrder, 0, context.Background())
 			if err != nil {
+				log.Error(err)
 				break
 			}
 			continue
@@ -141,6 +142,7 @@ func (c *GopherMartOrderController) checkOrder(login, orderID string, userContro
 			err = c.repository.UpdateOrder(orderID, types.ProcessedOrder, resp.Accrual, context.Background())
 			if err != nil {
 				log.Error(err)
+				break
 			}
 			err = userController.AddUserBalance(login, resp.Accrual, context.Background())
 			if err != nil {
