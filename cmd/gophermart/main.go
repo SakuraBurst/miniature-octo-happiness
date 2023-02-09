@@ -22,7 +22,6 @@ type app struct {
 	watcherChan     chan struct{}
 	stopAppChan     chan os.Signal
 	router          *router.Router
-	state           uint32
 }
 
 func (a *app) run() {
