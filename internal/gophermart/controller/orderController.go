@@ -12,10 +12,12 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 type GopherMartOrderController struct {
+	mu                        *sync.RWMutex
 	repository                repository.OrderTable
 	loyaltyServiceBaseAddress *url.URL
 	checkOrderQueue           chan struct{}
@@ -29,14 +31,26 @@ var ErrShutdown = errors.New("server is shutting down")
 
 func InitOrderController(table repository.OrderTable, loyaltyServiceBaseAddress string) (*GopherMartOrderController, error) {
 	u, err := url.Parse(loyaltyServiceBaseAddress)
+	u.Path = "/api/orders/"
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
-	return &GopherMartOrderController{repository: table, loyaltyServiceBaseAddress: u, checkOrderQueue: make(chan struct{}, 10)}, nil
+	return &GopherMartOrderController{
+		mu:                        &sync.RWMutex{},
+		repository:                table,
+		loyaltyServiceBaseAddress: u,
+		checkOrderQueue:           make(chan struct{}, 10),
+		isQueueClosed:             false,
+	}, nil
 }
 
 func (c *GopherMartOrderController) CreateOrder(orderID, login string, userController *GopherMartUserController, context context.Context) error {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.isQueueClosed {
+		return ErrShutdown
+	}
 	if !Luhn(orderID) {
 		return ErrInvalidOrderID
 	}
@@ -57,15 +71,14 @@ func (c *GopherMartOrderController) CreateOrder(orderID, login string, userContr
 
 		return err
 	}
-	if c.isQueueClosed {
-		return ErrShutdown
-	}
 	c.checkOrderQueue <- struct{}{}
 	go c.checkOrder(login, orderID, userController)
 	return nil
 }
 
 func (c *GopherMartOrderController) CloseQueue() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	close(c.checkOrderQueue)
 	c.isQueueClosed = true
 }
@@ -87,14 +100,13 @@ func (c *GopherMartOrderController) GetUserOrders(login string, context context.
 }
 
 func (c *GopherMartOrderController) checkOrder(login, orderID string, userController *GopherMartUserController) {
-	c.loyaltyServiceBaseAddress.Path = "/api/orders/" + orderID
+	orderURL := c.loyaltyServiceBaseAddress.String() + orderID
 	defer func() {
-		c.loyaltyServiceBaseAddress.Path = ""
 		<-c.checkOrderQueue
 	}()
 	for {
 		time.Sleep(time.Millisecond * 100)
-		r, err := http.Get(c.loyaltyServiceBaseAddress.String())
+		r, err := http.Get(orderURL)
 		if err != nil {
 			err = c.repository.UpdateOrder(orderID, types.InvalidOrder, 0, context.Background())
 			if err != nil {

@@ -32,20 +32,32 @@ type DB interface {
 	Close(ctx context.Context) error
 }
 
-func InitDataBase(address string) (UserTable, OrderTable, WithdrawTable, DB, error) {
+type InitDatabaseResult struct {
+	DB            DB
+	UserTable     UserTable
+	OrderTable    OrderTable
+	WithdrawTable WithdrawTable
+}
+
+func InitDataBase(address string) (*InitDatabaseResult, error) {
 	configSql, err := os.ReadFile("cmd/gophermart/config/init.sql")
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
 	c, cf := context.WithTimeout(context.Background(), time.Second)
 	defer cf()
 	conn, err := pgx.Connect(c, address)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
 	_, err = conn.Exec(c, string(configSql))
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, err
 	}
-	return &userTable{conn}, &ordersTable{conn}, &withdrawTable{conn}, conn, nil
+	return &InitDatabaseResult{
+		DB:            conn,
+		OrderTable:    &ordersTable{conn},
+		WithdrawTable: &withdrawTable{conn},
+		UserTable:     &userTable{conn},
+	}, nil
 }

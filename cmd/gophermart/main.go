@@ -16,14 +16,44 @@ import (
 	"time"
 )
 
-type appState int
+type app struct {
+	watchedServices []driver.Pinger
+	stopWatch       chan struct{}
+	watcherChan     chan struct{}
+	stopAppChan     chan os.Signal
+	router          *router.Router
+	state           uint32
+}
 
-const (
-	appStateRunning  appState = iota
-	appStateShutdown appState = iota
-)
+func (a *app) run() {
+	if err := a.router.Start(a.router.Endpoint); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal(err)
+	}
+}
 
-var currentState appState = -1
+func (a *app) watch() {
+	defer close(a.watcherChan)
+	for {
+		select {
+		case <-a.stopWatch:
+			return
+		case <-time.After(time.Second):
+			ctx, cl := context.WithTimeout(context.Background(), time.Millisecond*500)
+			for _, service := range a.watchedServices {
+				err := service.Ping(ctx)
+				if err != nil {
+					cl()
+					return
+				}
+			}
+			cl()
+		}
+	}
+}
+
+func (a *app) stopServiceWatch() {
+	close(a.stopWatch)
+}
 
 type config struct {
 	ServerAddress         string `env:"RUN_ADDRESS" envDefault:"localhost:8080"`
@@ -55,43 +85,38 @@ func main() {
 		log.Fatal(err)
 	}
 	checkFlags(cfg)
-	userRep, orderRep, withdrawRep, db, err := repository.InitDataBase(cfg.DataBaseURI)
+	dbInitRes, err := repository.InitDataBase(cfg.DataBaseURI)
 	if err != nil {
 		log.Fatal(err)
 	}
-	userController := controller.InitUserController(userRep, cfg.SecretTokenKey)
-	orderController, err := controller.InitOrderController(orderRep, cfg.LoyaltyServiceAddress)
+	userController := controller.InitUserController(dbInitRes.UserTable, cfg.SecretTokenKey)
+	orderController, err := controller.InitOrderController(dbInitRes.OrderTable, cfg.LoyaltyServiceAddress)
 	if err != nil {
 		log.Fatal(err)
 	}
-	withdrawController := controller.InitWithdrawController(withdrawRep)
+	withdrawController := controller.InitWithdrawController(dbInitRes.WithdrawTable)
 	r := router.CreateRouter(":8080", userController, orderController, withdrawController)
-	go func() {
-		currentState = appStateRunning
-		if err := r.Start(r.Endpoint); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatal(err)
-		}
-	}()
-
-	sigChan := make(chan os.Signal, 1)
-	watcherChan := make(chan struct{})
-	signal.Notify(sigChan, os.Interrupt)
-	go func() {
-		defer close(sigChan)
-		defer close(watcherChan)
-		dbWatch(db)
-	}()
-	<-sigChan
+	app := app{
+		router:          r,
+		watchedServices: []driver.Pinger{dbInitRes.DB},
+		stopWatch:       make(chan struct{}),
+		watcherChan:     make(chan struct{}),
+		stopAppChan:     make(chan os.Signal, 1),
+	}
+	signal.Notify(app.stopAppChan, os.Interrupt)
+	go app.run()
+	go app.watch()
+	<-app.stopAppChan
 	log.Info("server is shutting down")
-	currentState = appStateShutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := r.Shutdown(ctx); err != nil {
 		log.Fatal(err)
 	}
 	log.Info("router is shut down")
-	<-watcherChan
-	shutdown(orderController, db)
+	app.stopServiceWatch()
+	<-app.watcherChan
+	shutdown(orderController, dbInitRes.DB)
 }
 
 func shutdown(orderRep *controller.GopherMartOrderController, db repository.DB) {
@@ -106,22 +131,6 @@ func shutdown(orderRep *controller.GopherMartOrderController, db repository.DB) 
 		log.Error(err)
 	}
 	log.Info("db is closed")
-}
-
-func dbWatch(pinger driver.Pinger) {
-	for {
-		if currentState != appStateRunning {
-			return
-		}
-		ctx, cl := context.WithTimeout(context.Background(), time.Millisecond*500)
-		err := pinger.Ping(ctx)
-		if err != nil {
-			cl()
-			return
-		}
-		cl()
-		time.Sleep(time.Millisecond * 500)
-	}
 }
 
 func checkFlags(cfg *config) {
