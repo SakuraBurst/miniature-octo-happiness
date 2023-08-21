@@ -3,19 +3,20 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repoitory"
+	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/repository"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/jackc/pgx/v5"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
+	log "github.com/sirupsen/logrus"
+
 	"golang.org/x/crypto/bcrypt"
 	"time"
 )
 
 type GopherMartUserController struct {
-	repository repoitory.UserTable
+	repository repository.UserTable
 }
 type jwtTokenClaims struct {
 	Login string `json:"login"`
@@ -27,7 +28,7 @@ var ErrNoExist = errors.New("no exist")
 var ErrLowBalance = errors.New("low balance")
 var secret []byte
 
-func InitUserController(table repoitory.UserTable, secretTokenKey string) *GopherMartUserController {
+func InitUserController(table repository.UserTable, secretTokenKey string) *GopherMartUserController {
 	secret = []byte(secretTokenKey)
 	return &GopherMartUserController{repository: table}
 }
@@ -54,15 +55,17 @@ func (uc *GopherMartUserController) Register(login, password string, c context.C
 		return "", ErrExistingUser
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		fmt.Println(err)
+		log.Error(err)
 		return "", err
 	}
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), 0)
 	if err != nil {
+		log.Error(err)
 		return "", err
 	}
 	err = uc.repository.CreateUser(login, string(hashedPassword), c)
 	if err != nil {
+		log.Error(err)
 		return "", err
 	}
 	return uc.createUserToken(login)
@@ -74,6 +77,7 @@ func (uc *GopherMartUserController) Login(login, password string, c context.Cont
 		return "", ErrNoExist
 	}
 	if err != nil {
+		log.Error(err)
 		return "", err
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
@@ -81,6 +85,7 @@ func (uc *GopherMartUserController) Login(login, password string, c context.Cont
 		return "", ErrNoExist
 	}
 	if err != nil {
+		log.Error(err)
 		return "", err
 	}
 	return uc.createUserToken(login)
@@ -89,6 +94,7 @@ func (uc *GopherMartUserController) Login(login, password string, c context.Cont
 func (uc *GopherMartUserController) GetUserBalance(login string, c context.Context) (*types.UserBalance, error) {
 	user, err := uc.repository.GetUser(login, c)
 	if err != nil {
+		log.Error(err)
 		return nil, err
 	}
 	balance := new(types.UserBalance)
@@ -100,6 +106,7 @@ func (uc *GopherMartUserController) GetUserBalance(login string, c context.Conte
 func (uc *GopherMartUserController) AddUserBalance(login string, balance float64, c context.Context) error {
 	user, err := uc.repository.GetUser(login, c)
 	if err != nil {
+		log.Error(err)
 		return err
 	}
 	user.AddBalance(balance)
@@ -109,13 +116,18 @@ func (uc *GopherMartUserController) AddUserBalance(login string, balance float64
 func (uc *GopherMartUserController) WithdrawUserBalance(login string, requestedSum float64, c context.Context) error {
 	user, err := uc.repository.GetUser(login, c)
 	if err != nil {
+		log.Error(err)
 		return err
 	}
-	if user.Balance < requestedSum {
+	if !uc.checkUserHaveRequestedSum(user, requestedSum) {
 		return ErrLowBalance
 	}
 	user.WithdrawBalance(requestedSum)
 	return uc.repository.UpdateBalanceAndWithdraw(login, user.Balance, user.Withdraw, c)
+}
+
+func (uc *GopherMartUserController) checkUserHaveRequestedSum(user *types.User, requestedSum float64) bool {
+	return user.Balance >= requestedSum
 }
 
 func (uc *GopherMartUserController) createUserToken(login string) (string, error) {

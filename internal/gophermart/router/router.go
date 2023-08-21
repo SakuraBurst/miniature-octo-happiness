@@ -3,13 +3,14 @@ package router
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	_ "github.com/SakuraBurst/miniature-octo-happiness/cmd/gophermart/docs"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/controller"
 	"github.com/SakuraBurst/miniature-octo-happiness/internal/gophermart/types"
 	echojwt "github.com/labstack/echo-jwt/v4"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/sirupsen/logrus"
+	log "github.com/sirupsen/logrus"
 	echoSwagger "github.com/swaggo/echo-swagger"
 	"io"
 	"net/http"
@@ -35,7 +36,18 @@ func CreateRouter(endpoint string, userController *controller.GopherMartUserCont
 		withdrawController: withdrawController,
 	}
 	router.GET("/swagger/*", echoSwagger.WrapHandler)
-	router.Use(middleware.Logger())
+	router.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogURI:    true,
+		LogStatus: true,
+		LogValuesFunc: func(c echo.Context, values middleware.RequestLoggerValues) error {
+			log.WithFields(logrus.Fields{
+				"URI":    values.URI,
+				"status": values.Status,
+			}).Info("request")
+
+			return nil
+		},
+	}))
 	router.Use(middleware.Recover())
 	userAPI := router.Group("/api/user")
 	userAPI.POST("/register", router.Register)
@@ -150,7 +162,7 @@ func (r Router) CreateOrder(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusConflict)
 	}
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 		return echo.ErrInternalServerError
 	}
 	c.Response().WriteHeader(http.StatusAccepted)
@@ -248,7 +260,7 @@ func (r Router) Withdraw(c echo.Context) error {
 func (r Router) GetWithdrawals(c echo.Context) error {
 	withdraws, err := r.withdrawController.GetUserWithdrawals(controller.UserLoginFromToken(c.Get("token")), c.Request().Context())
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 		return echo.ErrInternalServerError
 	}
 	if len(withdraws) == 0 {
